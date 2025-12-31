@@ -1205,7 +1205,7 @@
                     // Create dir if assumes simple
                     fileSystem[dir] = [file];
                 }
-                alert(`Wrote lines to ${nanoFile}`);
+                showNotify(`File saved you can ctrl + x to leave`);
             }
             if (e.ctrlKey && e.key === 'x') {
                 e.preventDefault();
@@ -1395,9 +1395,9 @@
                     log(currentDir);
                     break;
 
-                case 'whoami':
-                    log('8k_zi');
+                case 'nanox': // Old testing
                     break;
+
 
                 case 'id':
                     log('uid=1000(8k_zi) gid=1000(8k_zi) groups=1000(8k_zi),4(adm),27(sudo)');
@@ -1491,6 +1491,20 @@
             d.className = 'ln'; d.style.color = color; d.innerText = t;
             term.appendChild(d);
             term.scrollTop = term.scrollHeight;
+        }
+
+        function showNotify(msg) {
+            let n = document.getElementById('simple-toast');
+            if (!n) {
+                n = document.createElement('div');
+                n.id = 'simple-toast';
+                n.style.cssText = "position:fixed; top:100px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.9); border:1px solid #bf00ff; color:#fff; padding:12px 24px; border-radius:4px; z-index:10000; transition:opacity 0.3s; opacity:0; font-family:'JetBrains Mono', monospace; font-size:0.9rem; pointer-events:none; box-shadow:0 0 20px rgba(191,0,255,0.4); text-align:center;";
+                document.body.appendChild(n);
+            }
+            n.innerText = msg;
+            n.style.opacity = '1';
+            clearTimeout(n.timeout);
+            n.timeout = setTimeout(() => { n.style.opacity = '0'; }, 3000);
         }
 
         // Wrap initial call in try-catch to allow flow control via throw
