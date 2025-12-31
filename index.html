@@ -1995,7 +1995,7 @@
                 if (s_food.x === x) dot |= S_DOTS[s_food.y];
                 display += dot > 0 ? String.fromCharCode(S_BASE + dot) : S_SLASH;
             }
-            return `||${display}||[${s_score}]`;
+            return `|${display}|[${s_score}]`;
         }
 
         function updateSnakeURL(frame) {
@@ -2027,7 +2027,7 @@
 
         function snakeOver(reason) {
             stopSnake();
-            updateSnakeURL(`||XX_GAME_OVER_XX||[${s_score}]`);
+            updateSnakeURL(`|XX_GAME_OVER_XX|[${s_score}]`);
             // Auto-restart after 2 seconds
             setTimeout(startSnake, 2000);
         }
