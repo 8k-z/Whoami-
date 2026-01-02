@@ -1183,10 +1183,12 @@
         function updateSys() {
             const el = document.getElementById('sys-data');
             if (!el) return;
+            const visitors = localStorage.getItem('visitorCount') || '0';
             el.innerHTML = `
                 <div class="stat-row"><span class="stat-label">OS</span><span class="stat-val">${getOS().toUpperCase()}</span></div>
                 <div class="stat-row"><span class="stat-label">CORES</span><span class="stat-val">${navigator.hardwareConcurrency || 4}</span></div>
                 <div class="stat-row"><span class="stat-label">RES</span><span class="stat-val">${window.screen.width}x${window.screen.height}</span></div>
+                <div class="stat-row"><span class="stat-label">VISITORS</span><span class="stat-val" style="color:var(--c-accent-sec)">${visitors}</span></div>
                 <div class="stat-row"><span class="stat-label">TIME</span><span class="stat-val" style="color:var(--c-accent)">${new Date().toLocaleTimeString()}</span></div>
             `;
         }
@@ -1324,7 +1326,10 @@
                     log('  ps        Running processes');
                     log('  reboot    Restart system');
                     log('  sudo      Execute as superuser');
-                    log('  snake     Play URL Snake Game');
+                    log('  register  Create website account');
+                    log('  login     Login to website');
+                    log('  logout    Logout from website');
+                    log('  snake     URL Snake Game (use snake help)');
                     log('  disas me  Identity Me (* Use in Identity Terminal)');
                     break;
 
@@ -1358,7 +1363,41 @@
                     break;
 
                 case 'snake':
-                    toggleSnake();
+                    if (args[0] === 'help') {
+                        log('SNAKE COMMANDS:', '#00ff88');
+                        log('  snake            Start/Stop the game');
+                        log('  snake scoreboard View high scores');
+                        log('  snake help       Show this help');
+                        log('');
+                        log('Note: Login to website to save scores.', '#666');
+                    } else if (args[0] === 'scoreboard') {
+                        showScoreboard();
+                    } else {
+                        toggleSnake();
+                    }
+                    break;
+
+                case 'register':
+                    promptRegister();
+                    throw new Error('register');
+
+                case 'login':
+                    if (snakeCurrentUser) {
+                        log(`You are already logged in as ${snakeCurrentUser}`, '#00ff88');
+                    } else {
+                        promptLogin();
+                        throw new Error('login');
+                    }
+                    break;
+
+                case 'logout':
+                    if (snakeCurrentUser) {
+                        log(`Logged out from ${snakeCurrentUser}`, '#ff5555');
+                        snakeCurrentUser = null;
+                        localStorage.removeItem('snakeCurrentUser');
+                    } else {
+                        log('Not logged in.', '#666');
+                    }
                     break;
 
                 case 'nano':
@@ -1503,6 +1542,113 @@
             term.scrollTop = term.scrollHeight;
         }
 
+        // --- SNAKE USER SYSTEM ---
+        let snakeCurrentUser = localStorage.getItem('snakeCurrentUser') || null;
+
+        function promptRegister() {
+            const d1 = document.createElement('div');
+            d1.className = 'ln';
+            d1.innerHTML = `Username: <input class="inp" style="width:150px" id="reg-user">`;
+            term.appendChild(d1);
+            const userInp = d1.querySelector('input');
+            userInp.focus();
+
+            userInp.onkeydown = e => {
+                if (e.key === 'Enter') {
+                    const username = userInp.value.trim();
+                    if (!username) { log('Username required.', '#f55'); termInput(); return; }
+
+                    const users = JSON.parse(localStorage.getItem('snakeUsers') || '{}');
+                    if (users[username]) { log('Username already exists.', '#f55'); termInput(); return; }
+
+                    userInp.disabled = true;
+
+                    const d2 = document.createElement('div');
+                    d2.className = 'ln';
+                    d2.innerHTML = `Password: <input type="password" class="inp" style="width:150px" id="reg-pass">`;
+                    term.appendChild(d2);
+                    const passInp = d2.querySelector('input');
+                    passInp.focus();
+
+                    passInp.onkeydown = e2 => {
+                        if (e2.key === 'Enter') {
+                            const password = passInp.value;
+                            if (!password) { log('Password required.', '#f55'); termInput(); return; }
+
+                            passInp.disabled = true;
+                            users[username] = btoa(password); // Simple encoding (not secure, but works for demo)
+                            localStorage.setItem('snakeUsers', JSON.stringify(users));
+
+                            // Auto-login
+                            snakeCurrentUser = username;
+                            localStorage.setItem('snakeCurrentUser', username);
+
+                            log(`Account created! Logged in as ${username}`, '#00ff88');
+                            termInput();
+                        }
+                    };
+                }
+            };
+        }
+
+        function promptLogin() {
+            const d1 = document.createElement('div');
+            d1.className = 'ln';
+            d1.innerHTML = `Username: <input class="inp" style="width:150px">`;
+            term.appendChild(d1);
+            const userInp = d1.querySelector('input');
+            userInp.focus();
+
+            userInp.onkeydown = e => {
+                if (e.key === 'Enter') {
+                    const username = userInp.value.trim();
+                    userInp.disabled = true;
+
+                    const users = JSON.parse(localStorage.getItem('snakeUsers') || '{}');
+                    if (!users[username]) { log('User not found.', '#f55'); termInput(); return; }
+
+                    const d2 = document.createElement('div');
+                    d2.className = 'ln';
+                    d2.innerHTML = `Password: <input type="password" class="inp" style="width:150px">`;
+                    term.appendChild(d2);
+                    const passInp = d2.querySelector('input');
+                    passInp.focus();
+
+                    passInp.onkeydown = e2 => {
+                        if (e2.key === 'Enter') {
+                            const password = passInp.value;
+                            passInp.disabled = true;
+
+                            if (users[username] === btoa(password)) {
+                                snakeCurrentUser = username;
+                                localStorage.setItem('snakeCurrentUser', username);
+                                log(`Logged in as ${username}`, '#00ff88');
+                            } else {
+                                log('Incorrect password.', '#f55');
+                            }
+                            termInput();
+                        }
+                    };
+                }
+            };
+        }
+
+        function showScoreboard() {
+            const scores = JSON.parse(localStorage.getItem('snakeScores') || '{}');
+            const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+
+            log('--- SNAKE SCOREBOARD ---', '#bf00ff');
+            if (sorted.length === 0) {
+                log('No scores yet. Play snake while logged in!', '#666');
+            } else {
+                sorted.slice(0, 10).forEach((entry, i) => {
+                    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '  ';
+                    log(`${medal} ${i + 1}. ${entry[0]}: ${entry[1]} pts`);
+                });
+            }
+            log('------------------------', '#bf00ff');
+        }
+
         function showNotify(msg) {
             let n = document.getElementById('simple-toast');
             if (!n) {
@@ -1516,6 +1662,18 @@
             clearTimeout(n.timeout);
             n.timeout = setTimeout(() => { n.style.opacity = '0'; }, 3000);
         }
+
+        // --- VISITOR COUNTER ---
+        (function initVisitorCounter() {
+            let count = parseInt(localStorage.getItem('visitorCount') || '0');
+            // Check if this is a new session (not just a refresh)
+            if (!sessionStorage.getItem('visited')) {
+                count++;
+                localStorage.setItem('visitorCount', count);
+                sessionStorage.setItem('visited', 'true');
+            }
+            // Count is displayed via updateSys() in LOCAL_ENV box
+        })();
 
         // Wrap initial call in try-catch to allow flow control via throw
         try { termInput(); } catch (e) { }
@@ -2052,6 +2210,15 @@
         function snakeOver(reason) {
             stopSnake();
             updateSnakeURL(`|XX_GAME_OVER_XX|[${s_score}]`);
+            // Save score if logged in
+            if (snakeCurrentUser && s_score > 0) {
+                const scores = JSON.parse(localStorage.getItem('snakeScores') || '{}');
+                if (!scores[snakeCurrentUser] || s_score > scores[snakeCurrentUser]) {
+                    scores[snakeCurrentUser] = s_score;
+                    localStorage.setItem('snakeScores', JSON.stringify(scores));
+                    showNotify(`New high score: ${s_score}!`);
+                }
+            }
             // Auto-restart after 2 seconds
             setTimeout(startSnake, 2000);
         }
